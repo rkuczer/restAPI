@@ -1,56 +1,51 @@
-from urllib import request
-
-from flask import Flask, jsonify
-import requests
+from flask import Flask
+from flask_restful import Resource, Api, reqparse, abort
 
 app = Flask(__name__)
+api = Api(app)
+parser = reqparse.RequestParser()
+parser.add_argument('title', required=True)
 
-drinks = [    {'name': 'Soda', 'price': 2.50},    {'name': 'Tea', 'price': 3.00},    {'name': 'Coffee', 'price': 4.00}]
-
-cocktails = [    {'name': 'Margarita', 'ingredients': ['Tequila', 'Lime Juice', 'Cointreau'], 'price': 8.50},
-    {'name': 'Old Fashioned', 'ingredients': ['Bourbon', 'Angostura Bitters', 'Sugar', 'Orange Peel'], 'price': 10.00},
-    {'name': 'Mojito', 'ingredients': ['Rum', 'Mint', 'Lime Juice', 'Sugar', 'Club Soda'], 'price': 9.00}
-]
-
-@app.route('/drinks')
-def get_drinks():
-    return jsonify({'drinks': drinks})
-
-@app.route('/cocktails')
-def get_cocktails():
-    return jsonify({'cocktails': cocktails})
-
-@app.route('/drinks/<string:name>')
-def get_drink_by_name(name):
-    for drink in drinks:
-        if drink['name'] == name:
-            return jsonify(drink)
-    return jsonify({'message': 'Drink not found'})
-
-@app.route('/cocktails/<string:name>')
-def get_cocktail_by_name(name):
-    for cocktail in cocktails:
-        if cocktail['name'] == name:
-            return jsonify(cocktail)
-    return jsonify({'message': 'Cocktail not found'})
-
-@app.route('/drinks', methods=['POST'])
-def add_drink():
-    new_drink = {'name': request.json['name'], 'price': request.json['price']}
-    drinks.append(new_drink)
-    return jsonify(new_drink)
-
-@app.route('/cocktails', methods=['POST'])
-def add_cocktail():
-    new_cocktail = {'name': request.json['name'], 'ingredients': request.json['ingredients'], 'price': request.json['price']}
-    cocktails.append(new_cocktail)
-    return jsonify(new_cocktail)
+videos = {
+    'video1': {'title': 'Tequila, Lime Juice, Cointreau'},
+    'video2': {'title': 'Bourbon, Angostura Bitters, Sugar, Orange Peel'},
+    'video3': {'title': 'Rum, Mint, Lime Juice, Sugar, Club Soda'}
+}
 
 
-@app.route('/hello')
-def hello():
-    return "Hello, World!"
+class Video(Resource):
+    def get(self, videoID):
+        if videoID == "all":
+            return videos
+        if videoID not in videos:
+            abort(404, message=f"Video {videoID} not found.")
 
+        return videos[videoID], 201
+
+    def put(self, videoID):
+        args = parser.parse_args()
+        new_video = {'title': args['title']}
+        videos[videoID] = new_video
+        return {videoID: videos[videoID]}, 201 #good status code
+
+    def delete(self, videoID):
+        if videoID not in videos:
+            abort(404, message=f"Video {videoID} not found.")
+        del videos[videoID]
+        return " ", 204
+
+class VideoSchedule(Resource):
+    def get(self):
+        return videos
+    def post(self):
+        args = parser.parse_args()
+        new_video = {'title' : args['title']}
+        videoID = max(int(v.lstrip('video')) for v in videos.keys()) + 1
+        videos[videoID] = new_video
+        return videos[videoID], 201
+
+api.add_resource(VideoSchedule, '/videos ')
+api.add_resource(Video, '/videos/<videoID>')
 
 if __name__ == '__main__':
     app.run()
